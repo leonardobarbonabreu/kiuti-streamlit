@@ -9,7 +9,7 @@ UNIDADES = ["g", "kg", "m", "cm", "ml", "l", "un", "pct"]
 
 st.set_page_config(page_title="Insumos · Kiuti", layout="wide")
 st.title("Insumos")
-api.exigir_login()
+#api.exigir_login()
 api.mostrar_aviso()
 
 try:
@@ -21,15 +21,16 @@ except api.ErroApi as erro:
 # --- Tabela ---
 if insumos:
     tabela = pd.DataFrame(insumos)
-    tabela["compra"] = [f"{numero(i['qtde_compra'])} {i['unidade_compra']} por {reais(i['custo'])}" for i in insumos]
+    tabela["compra"] = [f"{(i['qtde_compra'])} {i['unidade_compra']} por {(i['custo'])}" for i in insumos]
     st.dataframe(
-        tabela[["nome", "compra", "custo_unitario", "unidade_compra", "qtd_produtos"]],
+        tabela[["id", "nome", "compra", "custo", "unidade_compra"]], #"qtd_produtos"]],
         column_config={
+            "id": "ID",
             "nome": "Insumo",
             "compra": "Compra",
-            "custo_unitario": st.column_config.NumberColumn("Custo por unidade", format="R$ %.3f"),
+            "custo": st.column_config.NumberColumn("Custo por unidade", format="R$ %.3f"),
             "unidade_compra": "Unidade",
-            "qtd_produtos": "Usado em (produtos)",
+            #"qtd_produtos": "Usado em (produtos)",
         },
         hide_index=True,
         use_container_width=True,
@@ -40,7 +41,7 @@ else:
 # --- Cadastrar ou editar ---
 st.subheader("Cadastrar ou editar")
 # As opções são os ids (e não os dicionários): assim a escolha continua a mesma depois de um st.rerun().
-por_id = {i["id_insumo"]: i for i in insumos}
+por_id = {i["id"]: i for i in insumos}
 id_escolhido = st.selectbox(
     "Insumo",
     [None, *por_id],
@@ -64,7 +65,7 @@ if salvar:
     dados = {"nome": nome, "custo": custo, "unidade_compra": unidade, "qtde_compra": qtde}
     try:
         if insumo:
-            api.put(f"/insumos/{insumo['id_insumo']}", dados)
+            api.put(f"/insumos/{insumo['id']}", dados)
         else:
             api.post("/insumos", dados)
         api.avisar_depois(f"Insumo {nome.strip()} salvo.")
@@ -74,19 +75,19 @@ if salvar:
 
 # --- Usado em e excluir (só para um insumo escolhido) ---
 if insumo:
-    produtos = api.get(f"/insumos/{insumo['id_insumo']}/produtos")
+    produtos = api.get(f"/insumos/{insumo['id']}/produtos")
     if produtos:
         st.caption("Usado em: " + ", ".join(f"{p['nome']} ({numero(p['qtde'])} {insumo['unidade_compra']})" for p in produtos))
 
     if st.button("Excluir insumo"):
-        st.session_state["confirmar_exclusao"] = insumo["id_insumo"]
+        st.session_state["confirmar_exclusao"] = insumo["id"]
 
-    if st.session_state.get("confirmar_exclusao") == insumo["id_insumo"]:
+    if st.session_state.get("confirmar_exclusao") == insumo["id"]:
         st.warning(f"Excluir {insumo['nome']}? Não dá para desfazer.")
         if st.button("Sim, excluir", type="primary"):
             st.session_state.pop("confirmar_exclusao")
             try:
-                api.delete(f"/insumos/{insumo['id_insumo']}")
+                api.delete(f"/insumos/{insumo['id']}")
                 api.avisar_depois(f"Insumo {insumo['nome']} excluído.")
                 st.rerun()
             except api.ErroApi as erro:
